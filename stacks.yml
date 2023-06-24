@@ -1,0 +1,21 @@
+Resources:
+  LogbuyIAM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/logbuy-iam.yml
+  LogbuyCloudformationMacros:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/logbuy-cloudformation-macros/logbuy-cloudformation-macros.yml
+  LogbuyNotifications:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/logbuy-notifications-release-management.yml
+  LogbuyImages:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/logbuy-images.yml
+  LogbuyElasticache:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/logbuy-cache.yml

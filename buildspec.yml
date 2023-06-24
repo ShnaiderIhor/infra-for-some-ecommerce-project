@@ -1,0 +1,8 @@
+version: 0.2
+phases:
+  build:
+    commands:
+      - aws cloudformation package --template-file stacks.yml --s3-bucket $OUTPUT_PACKAGE_S3_BUCKET --output-template-file outputtemplate.yml
+artifacts:
+  files:
+    - outputtemplate.yml
