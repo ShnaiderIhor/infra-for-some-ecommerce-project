@@ -1,0 +1,93 @@
+Parameters:
+  BitbucketRepository:
+    Type: String
+    Default: logbuyrepo/notificationsender
+      
+Resources:
+
+  CodeBuildLogGroup: 
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: /aws/codebuild/LogbuyNotifications
+      RetentionInDays: 90
+
+  NotificationsBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: Notifications
+      ServiceRole: !ImportValue UniversalCodeBuildRoleArn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: NUGET_FEED
+            Type: PLAINTEXT
+            Value: '{{resolve:ssm:/Logbuy/General/NugetFeed:1}}'
+          - Name: OUTPUT_PACKAGE_S3_BUCKET
+            Type: PLAINTEXT
+            Value: !ImportValue S3PackagesBucketName
+      Source:
+        Type: CODEPIPELINE
+      LogsConfig:
+        CloudWatchLogs: 
+          GroupName: !Ref CodeBuildLogGroup
+          Status: ENABLED
+
+              
+  NotificationsPipeline:
+      Type: AWS::CodePipeline::Pipeline
+      Properties:
+        Name: logbuy-notifications
+        RoleArn: !ImportValue CodePipelineRoleArn
+        ArtifactStore:
+          Location: !ImportValue S3PipelineBucketName
+          Type: S3
+        Stages:
+          - Name: Source
+            Actions:
+              - Name: Source
+                OutputArtifacts: 
+                  - Name: SourceArtifact
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeStarSourceConnection
+                  Version: "1"
+                Configuration:
+                  ConnectionArn: '{{resolve:ssm:/Logbuy/General/BitbucketConnectionArn:1}}' 
+                  FullRepositoryId: !Ref BitbucketRepository
+                  BranchName: '{{resolve:ssm:/Logbuy/General/DefaultBranchName:1}}' 
+                  OutputArtifactFormat: CODE_ZIP
+          - Name: Build
+            Actions:
+              - Name: Build
+                ActionTypeId:
+                  Category: Build
+                  Owner: AWS
+                  Provider: CodeBuild
+                  Version: '1'
+                Configuration:
+                  ProjectName: !Ref NotificationsBuildProject
+                InputArtifacts:
+                  - Name: SourceArtifact
+                OutputArtifacts:
+                  - Name: BuildArtifact
+          - Name: Deploy
+            Actions:
+              - Name: Deploy
+                InputArtifacts:
+                - Name: BuildArtifact
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Configuration:
+                  ActionMode: CREATE_UPDATE
+                  Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
+                  RoleArn: !ImportValue CloudFormationPowerRole
+                  StackName: logbuy-notifications
+                  TemplatePath: 'BuildArtifact::outputtemplate.yml'

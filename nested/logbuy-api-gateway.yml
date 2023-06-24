@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: REST mobile API gateway
+      
+Resources:
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: REST mobile API
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: logbuy-mobile
+
+  ApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      Integration:
+        IntegrationHttpMethod: ANY
+        Type: HTTP
+        Uri: '***'
+      ResourceId: !GetAtt RestApi.RootResourceId
+      RestApiId: !Ref RestApi
+  

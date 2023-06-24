@@ -1,0 +1,65 @@
+Parameters:
+  DistributionOriginId:
+    Type: String
+    Default: logbuy-images
+      
+Resources:
+  ImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: PublicPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref ImagesBucket
+                - /*
+      Bucket: !Ref ImagesBucket
+
+  ParameterImagesBucketName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /Logbuy/General/ImagesBucketName
+      Type: String
+      Value: !Ref ImagesBucket
+
+  CloudFrontIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: "CloudFront user to access logbuy images bucket"
+
+  CloudFrontImagesDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:  
+          - !Join ["", [files., "{{resolve:ssm:/Logbuy/General/RootDomain:1}}"]]
+        Comment: "Distribution for logbuy images"
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        ViewerCertificate:
+          AcmCertificateArn: !ImportValue filesMylogbuyComCertArn
+          MinimumProtocolVersion: TLSv1.2_2019 
+          SslSupportMethod: sni-only
+        Origins:
+          - DomainName: !GetAtt ImagesBucket.RegionalDomainName
+            Id: !Ref DistributionOriginId
+            S3OriginConfig: 
+              OriginAccessIdentity: !Join ["", [origin-access-identity/cloudfront/, !Ref CloudFrontIdentity]]
+        DefaultCacheBehavior: 
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          TargetOriginId: !Ref DistributionOriginId
+          ViewerProtocolPolicy: allow-all

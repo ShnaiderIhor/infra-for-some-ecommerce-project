@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: Explode
+
+Mappings:
+  PackagesMap:
+    LogBuyCommonModel:
+      ResourceName: "PackageLogBuyCommonModel"
+      Folder: "LogBuy.Common.Model"
+      Pattern: "^LogBuy.Common.Model/*"
+    LogBuyCommonData:
+      ResourceName: "PackageLogBuyCommonData"
+      Folder: "LogBuy.Common.Data"
+      Pattern: "^LogBuy.Common.Data/*"
+    LogBuyCustomORM:
+      ResourceName: "PackageLogBuyCustomORM"
+      Folder: "Logbuy.CustomORM"
+      Pattern: "^Logbuy.CustomORM/*"
+      
+Parameters:
+  BitbucketRepository:
+    Type: String
+    Default: ***
+    
+  DomainNameParameter:
+    Type: String
+    Default: logbuy
+  RepositoryNameParameter:
+    Type: String
+    Default: logbuy-repository
+    
+Resources:
+  Domain:
+    Type: AWS::CodeArtifact::Domain
+    Properties:
+      DomainName: !Ref DomainNameParameter
+      PermissionsPolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: 
+            AWS: arn:aws:iam::134090879248:root
+          Action:
+          - codeartifact:*
+          - sts:GetServiceBearerToken
+          Resource: "*"
+
+  Repository:
+    Type: AWS::CodeArtifact::Repository
+    Properties:
+      DomainName: !GetAtt Domain.Name
+      RepositoryName: !Ref RepositoryNameParameter
+
+  CodeBuildLogGroup: 
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: /aws/codebuild/LogbuyCodeArtifact
+      RetentionInDays: 90
+
+  LogBuyPackageBuildProject:  
+    ExplodeMap: PackagesMap
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Name: "!Explode ResourceName"
+      ServiceRole: !ImportValue UniversalCodeBuildRoleArn
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        EnvironmentVariables:
+          - Name: NUGET_FEED
+            Type: PLAINTEXT
+            Value: '{{resolve:ssm:/Logbuy/General/NugetFeed:1}}'
+          - Name: PROJECT_FOLDER
+            Type: PLAINTEXT
+            Value: "!Explode Folder"
+      Source:
+        Type: BITBUCKET
+        Location: !Ref BitbucketRepository
+      LogsConfig:
+        CloudWatchLogs: 
+          GroupName: !Ref CodeBuildLogGroup
+          Status: ENABLED
+      Triggers:
+        Webhook: true
+        FilterGroups:
+          - - Type: EVENT
+              Pattern: PUSH
+            - Type: FILE_PATH
+              Pattern: "!Explode Pattern"
+
+  

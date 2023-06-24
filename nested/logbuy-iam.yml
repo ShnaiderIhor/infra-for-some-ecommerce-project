@@ -1,0 +1,53 @@
+
+Resources:
+  UniversalCodeBuildRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: UniversalCodeBuildRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: Policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - "codebuild:*"
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - "ssm:*"
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - "s3:*"
+                Resource: 
+                  - "*"             
+              - Effect: Allow
+                Action:
+                  - "codeartifact:*"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "sts:GetServiceBearerToken"
+                Resource: "*"
+                Condition: 
+                  StringEquals:
+                    "sts:AWSServiceName": "codeartifact.amazonaws.com"    
+
+Outputs:
+  UniversalCodeBuildRoleArn:
+    Value: !GetAtt UniversalCodeBuildRole.Arn
+    Export:
+      Name: 'UniversalCodeBuildRoleArn'

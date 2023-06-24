@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Elasticache with REDIS
+      
+Resources:
+  ElasticacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties: 
+      CacheSubnetGroupName: LogbuyRedisSubnetGroup
+      Description: Logbuy Elasticache
+      SubnetIds: 
+        - !ImportValue SubnetPrivateElastiCache01
+
+  ElasticacheCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties: 
+      CacheNodeType: cache.t3.small
+      CacheSubnetGroupName: !Ref ElasticacheSubnetGroup
+      ClusterName: logbuy-elasticache
+      Engine: redis
+      NumCacheNodes: 1
+      PreferredMaintenanceWindow: sun:23:00-mon:01:30
+      VpcSecurityGroupIds: 
+        - !ImportValue ElastiCache01SecurityGroup
+
+  LogbuyElasticache:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /Logbuy/Cache/RedisHost
+      Type: String
+      Value:  !Join [ ":", [ !GetAtt ElasticacheCluster.RedisEndpoint.Address, !GetAtt ElasticacheCluster.RedisEndpoint.Port ] ] 
+  LogbuyElasticacheCommandsChannel:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /Logbuy/Cache/CommandsChannel
+      Type: String
+      Value: cache
+
+Outputs:
+  ElasticacheAddress:
+    Value: !GetAtt ElasticacheCluster.RedisEndpoint.Address
+    Export:
+      Name: 'ElasticacheAddress'
+  
+  
